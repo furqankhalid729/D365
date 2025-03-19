@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
 		]);
         $middleware->alias([
             'verify.shopify.webhook' => \App\Http\Middleware\VerifyShopifyWebhook::class,
+            'custom.auth' => \App\Http\Middleware\BearerTokenMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
