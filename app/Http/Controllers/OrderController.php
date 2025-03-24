@@ -51,7 +51,6 @@ class OrderController extends Controller
                 ]
             ]
         ];
-
         $response = Http::withToken($token)
         ->post(env("D365_CREATE_CUSTOMER_ACCOUNT"), $apiData);
 

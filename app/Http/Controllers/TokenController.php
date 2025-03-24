@@ -6,11 +6,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 
+use Illuminate\Support\Facades\Log;
+
 class TokenController extends Controller
 {
     public function getToken(Request $request)
     {
-        $secretKey = $request->header('secret_key');
+        $secretKey = $request->header('Secret-Key');
+      	Log::info("Token are",[$secretKey]);
         if (empty($secretKey)) {
             return response()->json(['message' => 'Secret key is required'], 400);
         }
