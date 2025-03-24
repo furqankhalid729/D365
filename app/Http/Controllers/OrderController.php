@@ -20,25 +20,29 @@ class OrderController extends Controller
         $shippingAddress = $data['shipping_address'] ?? null;
 
         $token = $this->getMicrosoftToken();
-        Log:
         info("Token is", [$token]);
         if ($token == "")
             return response()->json([
                 "message" => "error generating token"
             ]);
 
-        $customerID = $this->createCustomer($shippingAddress, $email, $token);
+        $customer = Customer::where("email", $email)->first();
+        if (!$customer)
+            $customerID = $this->createCustomer($shippingAddress, $email, $token);
+
+        return $this->createOrder($request->all(),$token,$email);
     }
 
     public function update(Request $request) {}
 
     private function createCustomer($shippingAddress, $email, $token)
     {
+        $CustomerID = "CUS-" . date("YmdHis") . substr(microtime(true), -6);
         $apiData = [
             "_request" => [
                 "DataAreaId" => "GC",
                 "Customer" => [
-                    "CustAccount" => "CUS-" . rand(1000, 9999),
+                    "CustAccount" => $CustomerID,
                     "Name" => $shippingAddress['first_name'] . ' ' . $shippingAddress['last_name'],
                     "CustType" => "Person",
                     "city" => $shippingAddress['city'],
@@ -52,9 +56,66 @@ class OrderController extends Controller
             ]
         ];
         $response = Http::withToken($token)
-        ->post(env("D365_CREATE_CUSTOMER_ACCOUNT"), $apiData);
+            ->post(env("D365_CREATE_CUSTOMER_ACCOUNT"), $apiData);
+
+        if ($response->successful()) {
+            $responseData = $response->json(); // Convert response to array
+            $customer = new Customer();
+            $customer->crmId = $CustomerID;
+            $customer->name = $shippingAddress['first_name'] . ' ' . $shippingAddress['last_name'];
+            $customer->email = $email;
+            $customer->save();
+
+            return response()->json([
+                'message' => 'Customer created successfully',
+                'customer' => $customer
+            ], 201);
+        } else {
+            return response()->json([
+                'message' => 'Failed to create customer',
+                'error' => $response->body()
+            ], $response->status());
+        }
 
         Log::info("API Response", $response->json());
+    }
+
+    private function createOrder($shopifyOrder,$token, $email)
+    {
+        $salesOrderLines = array_map(function ($item, $index) {
+            return [
+                "LineNumberExternal" => (string) ($index + 1),
+                "ItemNumber" => $item["title"],  // Using product title as ItemNumber
+                "SalesQuantity" => $item["quantity"],
+                "DiscountPercentage" => 10, // Example discount
+                "Discount" => $item["price"] * 0.1,
+                "UnitPrice" => $item["price"],
+                "LineAmount" => $item["quantity"] * $item["price"]
+            ];
+        }, $shopifyOrder["line_items"], array_keys($shopifyOrder["line_items"]));
+        $customer = Customer::where("email", $email)->first();
+        $apiData = [
+            "_request" => [
+                "DataAreaId" => "GC",
+                "SalesOrderHeader" => [
+                    "MessageId" => uniqid(),
+                    "SalesOrderNumber" => $shopifyOrder["name"],
+                    "CustomerAccountNumber" => $customer->id ?? "C000137",
+                    "DlvTerm" => "30 days",
+                    "RequestedReceiptDate" => date("m/d/Y"),
+                    "DlvMode" => "ship"
+                ],
+                "SalesOrderLines" => $salesOrderLines
+            ]
+        ];
+        $response = Http::withToken($token)->post(env("D365_CREATE_ORDER"), $apiData);
+        if ($response->successful()) {
+            Log::info('D365 Order Created Successfully:', $apiData);
+            return response()->json(['message' => 'Order sent to D365', 'order' => $apiData], 201);
+        } else {
+            Log::error('D365 Order Creation Failed:', ['error' => $response->body()]);
+            return response()->json(['message' => 'Failed to create order in D365', 'error' => $response->body()], $response->status());
+        }
     }
 
     private function getMicrosoftToken()
