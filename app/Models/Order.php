@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class Order extends Model
 {
     protected $fillable = [
-        'orderId'
+        'orderId',
+        'D365_ID',
+        'email',
+        'orderName'
     ];
 }

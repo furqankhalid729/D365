@@ -30,10 +30,22 @@ class OrderController extends Controller
         if (!$customer)
             $customerID = $this->createCustomer($shippingAddress, $email, $token);
 
-        return $this->createOrder($request->all(),$token,$email);
+        $order = $this->createOrder($request->all(),$token,$email);
+        $this->saveOrder($request->all(),$order,$email);
+        return $order;
     }
 
     public function update(Request $request) {}
+
+    private function saveOrder($shopifyOrder, $order,$email){
+        $orderArray = $order->getData(true);
+        Order::create([
+            'orderId' => $shopifyOrder['id'],
+            'D365_ID' => $orderArray['order']['_request']['SalesOrderHeader']['MessageId'],
+            'email' => $email,
+            'orderName' => $shopifyOrder["name"]
+        ]);
+    }
 
     private function createCustomer($shippingAddress, $email, $token)
     {
@@ -85,9 +97,9 @@ class OrderController extends Controller
         $salesOrderLines = array_map(function ($item, $index) {
             return [
                 "LineNumberExternal" => (string) ($index + 1),
-                "ItemNumber" => $item["title"],  // Using product title as ItemNumber
+                "ItemNumber" => $item["title"],
                 "SalesQuantity" => $item["quantity"],
-                "DiscountPercentage" => 10, // Example discount
+                "DiscountPercentage" => 10,
                 "Discount" => $item["price"] * 0.1,
                 "UnitPrice" => $item["price"],
                 "LineAmount" => $item["quantity"] * $item["price"]
@@ -100,7 +112,7 @@ class OrderController extends Controller
                 "SalesOrderHeader" => [
                     "MessageId" => uniqid(),
                     "SalesOrderNumber" => $shopifyOrder["name"],
-                    "CustomerAccountNumber" => $customer->id ?? "C000137",
+                    "CustomerAccountNumber" => $customer->id,
                     "DlvTerm" => "30 days",
                     "RequestedReceiptDate" => date("m/d/Y"),
                     "DlvMode" => "ship"
