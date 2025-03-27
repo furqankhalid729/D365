@@ -30,14 +30,35 @@ class OrderController extends Controller
         if (!$customer)
             $customerID = $this->createCustomer($shippingAddress, $email, $token);
 
-        $order = $this->createOrder($request->all(),$token,$email);
-        $this->saveOrder($request->all(),$order,$email);
+        $order = $this->createOrder($request->all(), $token, $email);
+        $this->saveOrder($request->all(), $order, $email);
         return $order;
     }
 
-    public function update(Request $request) {}
+    public function update(Request $request)
+    {
+        Log::info("Order ID", [$request["id"]]);
+        $order = Order::where("orderId", $request["id"])->first();
+        if ($order) {
+            $token = $this->getMicrosoftToken();
+            $apiData = [
+                '_request' => [
+                    'DataAreaId' => 'GC',
+                    'SalesOrderHeader' => [
+                        'MessageId' => "67e5b9f4ab173",
+                        'OrderStatus' => 'Invoiced',
+                        'paymentStatus' => 'received',
+                        'fulfillmentStatus' => 'delivered'
+                    ]
+                ]
+            ];
+            $response = Http::withToken($token)->post(env("D365_UPDATE_ORDER"), $apiData);
+            return $response;
+        }
+    }
 
-    private function saveOrder($shopifyOrder, $order,$email){
+    private function saveOrder($shopifyOrder, $order, $email)
+    {
         $orderArray = $order->getData(true);
         Order::create([
             'orderId' => $shopifyOrder['id'],
@@ -92,7 +113,7 @@ class OrderController extends Controller
         Log::info("API Response", $response->json());
     }
 
-    private function createOrder($shopifyOrder,$token, $email)
+    private function createOrder($shopifyOrder, $token, $email)
     {
         $salesOrderLines = array_map(function ($item, $index) {
             return [

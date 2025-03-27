@@ -13,3 +13,4 @@ Route::post('/api/inventory', [InventoryController::class, 'store'])->middleware
 Route::post('/api/inventory/abs', [InventoryController::class, 'setAbsoluteValue'])->middleware('custom.auth');
 
 Route::post('/api/order/create', [OrderController::class, 'store']);//->middleware('verify.shopify.webhook');
+Route::post('/api/order/update', [OrderController::class, 'update']);
