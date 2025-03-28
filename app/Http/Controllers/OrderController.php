@@ -70,7 +70,7 @@ class OrderController extends Controller
 
     private function createCustomer($shippingAddress, $email, $token)
     {
-        $CustomerID = "CUS-" . date("YmdHis") . substr(microtime(true), -6);
+        $CustomerID = "CUS-" . date("YmdHis");
         $apiData = [
             "_request" => [
                 "DataAreaId" => "GC",
