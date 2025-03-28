@@ -133,7 +133,7 @@ class OrderController extends Controller
                 "SalesOrderHeader" => [
                     "MessageId" => uniqid(),
                     "SalesOrderNumber" => $shopifyOrder["name"],
-                    "CustomerAccountNumber" => $customer->id,
+                    "CustomerAccountNumber" => $customer->crmId,
                     "DlvTerm" => "30 days",
                     "RequestedReceiptDate" => date("m/d/Y"),
                     "DlvMode" => "ship"
