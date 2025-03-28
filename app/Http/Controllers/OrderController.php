@@ -143,7 +143,7 @@ class OrderController extends Controller
         $response = Http::withToken($token)->post(env("D365_CREATE_ORDER"), $apiData);
         if ($response->successful()) {
             Log::info('D365 Order Created Successfully:', $apiData);
-            return response()->json(['message' => 'Order sent to D365', 'order' => $apiData], 201);
+            return response()->json(['message' => 'Order sent to D365', 'order' => $response], 201);
         } else {
             Log::error('D365 Order Creation Failed:', ['error' => $response->body()]);
             return response()->json(['message' => 'Failed to create order in D365', 'error' => $response->body()], $response->status());
