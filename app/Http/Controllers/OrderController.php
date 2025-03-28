@@ -75,7 +75,6 @@ class OrderController extends Controller
             "_request" => [
                 "DataAreaId" => "GC",
                 "Customer" => [
-                    "CustAccount" => $CustomerID,
                     "Name" => $shippingAddress['first_name'] . ' ' . $shippingAddress['last_name'],
                     "CustType" => "Person",
                     "city" => $shippingAddress['city'],
@@ -92,9 +91,9 @@ class OrderController extends Controller
             ->post(env("D365_CREATE_CUSTOMER_ACCOUNT"), $apiData);
 
         if ($response->successful()) {
-            $responseData = $response->json(); // Convert response to array
+            $responseData = $response->json();
             $customer = new Customer();
-            $customer->crmId = $CustomerID;
+            $customer->crmId = $responseData["custID"];
             $customer->name = $shippingAddress['first_name'] . ' ' . $shippingAddress['last_name'];
             $customer->email = $email;
             $customer->save();
