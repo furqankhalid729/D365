@@ -30,6 +30,12 @@ class OrderController extends Controller
         if (!$customer)
             $customerID = $this->createCustomer($shippingAddress, $email, $token);
 
+        $checkOrder = Order::where("orderId", $data["id"])->first();
+        if ($checkOrder) {
+            return response()->json([
+                "message" => "Order already exists"
+            ]);
+        }
         $order = $this->createOrder($request->all(), $token, $email);
         $this->saveOrder($request->all(), $order, $email);
         return $order;
