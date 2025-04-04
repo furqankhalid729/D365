@@ -117,7 +117,7 @@ class OrderController extends Controller
         $salesOrderLines = array_map(function ($item, $index) {
             return [
                 "LineNumberExternal" => (string) ($index + 1),
-                "ItemNumber" => $item["title"],
+                "ItemNumber" => $item["sku"],
                 "SalesQuantity" => $item["quantity"],
                 "DiscountPercentage" => 10,
                 "Discount" => $item["price"] * 0.1,
