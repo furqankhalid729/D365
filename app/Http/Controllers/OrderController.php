@@ -141,7 +141,11 @@ class OrderController extends Controller
                     "CustomerAccountNumber" => $customer->crmId,
                     "DlvTerm" => "30 days",
                     "RequestedReceiptDate" => date("m/d/Y"),
-                    "DlvMode" => "ship"
+                    "DlvMode" => "ship",
+                    "PaymMode" => "COD",
+                    "OrderStatus" => "Created",
+                    "paymentStatus" => "Not received",
+                    "fulfillmentStatus" => "Not delivered"
                 ],
                 "SalesOrderLines" => $salesOrderLines
             ]
