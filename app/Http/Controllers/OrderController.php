@@ -66,31 +66,28 @@ class OrderController extends Controller
     private function saveOrder($shopifyOrder, $order, $email)
     {
         $orderArray = $order->getData(true);
-        
-        if($orderArray['status'] == "success") {
+
+        if ($orderArray['status'] == "success") {
             Log::info("Order Array", [$orderArray['response']]);
             Order::create([
                 'orderId' => $shopifyOrder['id'],
                 'D365_ID' => $orderArray['order']['_request']['SalesOrderHeader']['MessageId'],
                 'email' => $email,
                 'orderName' => $shopifyOrder["name"],
-                'status'=> $orderArray['status'],
+                'status' => $orderArray['status'],
                 'payload' => json_encode($orderArray['order'])
             ]);
-        }
-        else{
+        } else {
             Log::info("Order Array", [$orderArray]);
             Order::create([
                 'orderId' => $shopifyOrder['id'],
                 //'D365_ID' => $orderArray['order']['_request']['SalesOrderHeader']['MessageId'],
                 'email' => $email,
                 'orderName' => $shopifyOrder["name"],
-                'status'=> $orderArray['status'],
+                'status' => $orderArray['status'],
                 'payload' => json_encode($orderArray['order'])
             ]);
         }
-
-        
     }
 
     private function createCustomer($shippingAddress, $email, $token)
@@ -151,6 +148,19 @@ class OrderController extends Controller
             ];
         }, $shopifyOrder["line_items"], array_keys($shopifyOrder["line_items"]));
         $customer = Customer::where("email", $email)->first();
+        $gatewayNames = $shopifyOrder['payment_gateway_names'] ?? [];
+        $firstGateway = $gatewayNames[0] ?? '';
+        log::info("Payment Gateway", [$firstGateway, $gatewayNames]);
+        if (
+            str_contains($firstGateway, 'Cash on Delivery') ||
+            str_contains($firstGateway, 'COD') ||
+            str_contains($firstGateway, 'Manual')
+        ) {
+            $paymentMethod = 'COD';
+        } else {
+            $paymentMethod = 'CreditCard';
+        }
+
         $apiData = [
             "_request" => [
                 "DataAreaId" => "GC",
@@ -161,7 +171,7 @@ class OrderController extends Controller
                     "DlvTerm" => "30 days",
                     "RequestedReceiptDate" => date("m/d/Y"),
                     "DlvMode" => "ship",
-                    "PaymMode" => "COD",
+                    "PaymMode" => $paymentMethod,
                     "OrderStatus" => "Created",
                     "paymentStatus" => "Not received",
                     "fulfillmentStatus" => "Not delivered"
@@ -217,5 +227,40 @@ class OrderController extends Controller
             return $token;
         }
         return '';
+    }
+
+    public function resendOrder($id)
+    {
+        $order = Order::where("id", $id)->first();
+        if ($order) {
+            $token = $this->getMicrosoftToken();
+            $apiData = json_decode($order->payload);
+            $response = Http::withToken($token)->post(env("D365_CREATE_ORDER"), $apiData);
+            if ($response->successful()) {
+                $responseData = json_decode($response->body(), true);
+                $success = isset($responseData['Success']) && $responseData['Success'] === true;
+                $status = $success ? 'success' : 'error';
+                if ($success) {
+                    Log::info('D365 Order Created Successfully:', $apiData);
+                    return response()->json([
+                        'message' => 'Order sent to D365',
+                        'order' => $apiData,
+                        'response' => $responseData,
+                        'status' => $status
+                    ], 201);
+                } else {
+                    Log::error('D365 Order Creation Failed:', ['error' => $responseData]);
+                    return response()->json([
+                        'message' => 'Failed to create order in D365',
+                        'error' => $responseData,
+                        'order' => $apiData,
+                        'status' => $status
+                    ], $response->status());
+                }
+            } else {
+                Log::error('D365 Order Creation Failed:', ['error' => $response->body()]);
+                return response()->json(['message' => 'Failed to create order in D365', 'order' => $apiData, 'response' => $response->body(), 'status' => 'error'], $response->status());
+            }
+        }
     }
 }

@@ -33,7 +33,8 @@ class SettingsController extends Controller
         return redirect()->back()->with('success', 'Settings updated successfully!');
     }
     public function orders(Request $request){
-        $orders = Order::first();
+        $orders = Order::latest()->take(300)->get();
+
         return Inertia::render('Order',[
             'orders' => $orders,
         ]);

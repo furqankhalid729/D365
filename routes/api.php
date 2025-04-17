@@ -3,6 +3,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\TokenController;
+use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/api/get-token', [TokenController::class, 'getToken']);
@@ -14,3 +15,5 @@ Route::post('/api/inventory/abs', [InventoryController::class, 'setAbsoluteValue
 
 Route::post('/api/order/create', [OrderController::class, 'store']);//->middleware('verify.shopify.webhook');
 Route::post('/api/order/update', [OrderController::class, 'update']);
+
+Route::post('/api/send-order/{id}', [OrderController::class, 'resendOrder'])->middleware(['auth:sanctum', 'verified'])->name('order.resend');
