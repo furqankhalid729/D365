@@ -17,6 +17,7 @@ Route::get('/', function () {
 
 Route::get('/dashboard', [SettingsController::class, 'index'])->middleware(['auth:sanctum', 'verified'])->name('dashboard');
 Route::post('/dashboard', [SettingsController::class, 'store'])->middleware(['auth:sanctum', 'verified'])->name('store');
+Route::get('/orders', [SettingsController::class, 'orders'])->middleware(['auth:sanctum', 'verified'])->name('orders');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

@@ -66,12 +66,31 @@ class OrderController extends Controller
     private function saveOrder($shopifyOrder, $order, $email)
     {
         $orderArray = $order->getData(true);
-        Order::create([
-            'orderId' => $shopifyOrder['id'],
-            'D365_ID' => $orderArray['order']['_request']['SalesOrderHeader']['MessageId'],
-            'email' => $email,
-            'orderName' => $shopifyOrder["name"]
-        ]);
+        
+        if($orderArray['status'] == "success") {
+            Log::info("Order Array", [$orderArray['response']]);
+            Order::create([
+                'orderId' => $shopifyOrder['id'],
+                'D365_ID' => $orderArray['order']['_request']['SalesOrderHeader']['MessageId'],
+                'email' => $email,
+                'orderName' => $shopifyOrder["name"],
+                'status'=> $orderArray['status'],
+                'payload' => json_encode($orderArray['order'])
+            ]);
+        }
+        else{
+            Log::info("Order Array", [$orderArray]);
+            Order::create([
+                'orderId' => $shopifyOrder['id'],
+                //'D365_ID' => $orderArray['order']['_request']['SalesOrderHeader']['MessageId'],
+                'email' => $email,
+                'orderName' => $shopifyOrder["name"],
+                'status'=> $orderArray['status'],
+                'payload' => json_encode($orderArray['order'])
+            ]);
+        }
+
+        
     }
 
     private function createCustomer($shippingAddress, $email, $token)
@@ -136,7 +155,7 @@ class OrderController extends Controller
             "_request" => [
                 "DataAreaId" => "GC",
                 "SalesOrderHeader" => [
-                    "MessageId" => uniqid(),
+                    //"MessageId" => uniqid(),
                     "SalesOrderNumber" => $shopifyOrder["name"],
                     "CustomerAccountNumber" => $customer->crmId,
                     "DlvTerm" => "30 days",
@@ -152,11 +171,29 @@ class OrderController extends Controller
         ];
         $response = Http::withToken($token)->post(env("D365_CREATE_ORDER"), $apiData);
         if ($response->successful()) {
-            Log::info('D365 Order Created Successfully:', $apiData);
-            return response()->json(['message' => 'Order sent to D365', 'order' => $apiData, 'response'=>$response->body()], 201);
+            $responseData = json_decode($response->body(), true);
+            $success = isset($responseData['Success']) && $responseData['Success'] === true;
+            $status = $success ? 'success' : 'error';
+            if ($success) {
+                Log::info('D365 Order Created Successfully:', $apiData);
+                return response()->json([
+                    'message' => 'Order sent to D365',
+                    'order' => $apiData,
+                    'response' => $responseData,
+                    'status' => $status
+                ], 201);
+            } else {
+                Log::error('D365 Order Creation Failed:', ['error' => $responseData]);
+                return response()->json([
+                    'message' => 'Failed to create order in D365',
+                    'error' => $responseData,
+                    'order' => $apiData,
+                    'status' => $status
+                ], $response->status());
+            }
         } else {
             Log::error('D365 Order Creation Failed:', ['error' => $response->body()]);
-            return response()->json(['message' => 'Failed to create order in D365', 'error' => $response->body()], $response->status());
+            return response()->json(['message' => 'Failed to create order in D365', 'order' => $apiData, 'response' => $response->body(), 'status' => 'error'], $response->status());
         }
     }
 

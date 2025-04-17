@@ -10,6 +10,8 @@ class Order extends Model
         'orderId',
         'D365_ID',
         'email',
-        'orderName'
+        'orderName',
+        'payload',
+        'status'
     ];
 }

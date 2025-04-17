@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Settings;
+use App\Models\Order;
 use Inertia\Inertia;
 
 class SettingsController extends Controller
@@ -30,5 +31,11 @@ class SettingsController extends Controller
             $validatedData
         );
         return redirect()->back()->with('success', 'Settings updated successfully!');
+    }
+    public function orders(Request $request){
+        $orders = Order::first();
+        return Inertia::render('Order',[
+            'orders' => $orders,
+        ]);
     }
 }
