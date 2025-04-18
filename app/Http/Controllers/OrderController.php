@@ -141,8 +141,7 @@ class OrderController extends Controller
                 "LineNumberExternal" => (string) ($index + 1),
                 "ItemNumber" => $item["sku"],
                 "SalesQuantity" => $item["quantity"],
-                "DiscountPercentage" => 10,
-                "Discount" => $item["price"] * 0.1,
+                "Discount" => $item["total_discount_set"]['presentment_money']['amount'],
                 "UnitPrice" => $item["price"],
                 "LineAmount" => $item["quantity"] * $item["price"]
             ];
@@ -174,7 +173,8 @@ class OrderController extends Controller
                     "PaymMode" => $paymentMethod,
                     "OrderStatus" => "Created",
                     "paymentStatus" => "Not received",
-                    "fulfillmentStatus" => "Not delivered"
+                    "fulfillmentStatus" => "Not delivered",
+                    "shippingCost" => $shopifyOrder["current_shipping_price_set"]['presentment_money']['amount'],
                 ],
                 "SalesOrderLines" => $salesOrderLines
             ]
