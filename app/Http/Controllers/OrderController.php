@@ -81,7 +81,7 @@ class OrderController extends Controller
             Log::info("Order Array", [$orderArray]);
             Order::create([
                 'orderId' => $shopifyOrder['id'],
-                //'D365_ID' => $orderArray['order']['_request']['SalesOrderHeader']['MessageId'],
+                'D365_ID' => $orderArray['order']['_request']['SalesOrderHeader']['MessageId'],
                 'email' => $email,
                 'orderName' => $shopifyOrder["name"],
                 'status' => $orderArray['status'],
@@ -165,7 +165,7 @@ class OrderController extends Controller
             "_request" => [
                 "DataAreaId" => "GC",
                 "SalesOrderHeader" => [
-                    //"MessageId" => uniqid(),
+                    "MessageId" => substr(md5(uniqid()), 0, 27),
                     "SalesOrderNumber" => $shopifyOrder["name"],
                     "CustomerAccountNumber" => $customer->crmId,
                     "DlvTerm" => "30 days",
