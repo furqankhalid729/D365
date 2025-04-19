@@ -45,21 +45,45 @@ class OrderController extends Controller
     {
         Log::info("Order ID", [$request["id"]]);
         $order = Order::where("orderId", $request["id"])->first();
+        $data = $request->all();
         if ($order) {
-            $token = $this->getMicrosoftToken();
-            $apiData = [
-                '_request' => [
-                    'DataAreaId' => 'GC',
-                    'SalesOrderHeader' => [
-                        'MessageId' => "67e5b9f4ab173",
-                        'OrderStatus' => 'Invoiced',
-                        'paymentStatus' => 'received',
-                        'fulfillmentStatus' => 'delivered'
+            Log::info("Order Data", $data);
+            Log::info("Order status", [$data['fulfillment_status']]);
+            if($data['fulfillment_status'] == "fulfilled"){
+                $token = $this->getMicrosoftToken();
+                $apiData = [
+                    '_request' => [
+                        'DataAreaId' => 'GC',
+                        'SalesOrderHeader' => [
+                            'MessageId' => $data['id'],
+                            'OrderStatus' => 'Invoiced',
+                            'paymentStatus' => 'received',
+                            'fulfillmentStatus' => 'delivered'
+                        ]
                     ]
-                ]
-            ];
-            $response = Http::withToken($token)->post(env("D365_UPDATE_ORDER"), $apiData);
-            return $response;
+                ];
+                $response = Http::withToken($token)->post(env("D365_UPDATE_ORDER"), $apiData);
+                return $response;
+            }
+            if ($data['fulfillment_status'] == "cancelled") {
+                $token = $this->getMicrosoftToken();
+                $apiData = [
+                    '_request' => [
+                        'DataAreaId' => 'GC',
+                        'SalesOrderHeader' => [
+                            'MessageId' => $data['id'],
+                            'OrderStatus' => 'Cancelled'
+                        ]
+                    ]
+                ];
+                $response = Http::withToken($token)->post(env("D365_UPDATE_ORDER"), $apiData);
+                return $response;
+            }
+        }
+        else{
+            return response()->json([
+                "message" => "Order not found"
+            ]);
         }
     }
 
@@ -164,7 +188,7 @@ class OrderController extends Controller
             "_request" => [
                 "DataAreaId" => "GC",
                 "SalesOrderHeader" => [
-                    "MessageId" => substr(md5(uniqid()), 0, 27),
+                    "MessageId" => (string) $shopifyOrder['id'],
                     "SalesOrderNumber" => $shopifyOrder["name"],
                     "CustomerAccountNumber" => $customer->crmId,
                     "DlvTerm" => "30 days",
