@@ -70,13 +70,17 @@ class OrderController extends Controller
                 $apiData = [
                     '_request' => [
                         'DataAreaId' => 'GC',
-                        'SalesOrderHeader' => [
+                        'ReturnOrderHeader' => [
                             'MessageId' => $data['id'],
-                            'OrderStatus' => 'Cancelled'
+                            "SalesOrderNumber"=>"EC000102",
+                            "CustomerAccountNumber" =>"EC000102",
+                            "Reason"=>"defect product delivered",
+                            "ReturnDate"=>"12/15/2020",
+                            "ReturnShippingCost"=>"Yes"
                         ]
                     ]
                 ];
-                $response = Http::withToken($token)->post(env("D365_UPDATE_ORDER"), $apiData);
+                $response = Http::withToken($token)->post(env("D365_CANCEL_ORDER"), $apiData);
                 return $response;
             }
         }
