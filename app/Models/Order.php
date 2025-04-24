@@ -12,6 +12,7 @@ class Order extends Model
         'email',
         'orderName',
         'payload',
-        'status'
+        'status',
+        'salesID'
     ];
 }

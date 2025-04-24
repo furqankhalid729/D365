@@ -47,9 +47,12 @@ class OrderController extends Controller
         $order = Order::where("orderId", $request["id"])->first();
         $data = $request->all();
         if ($order) {
-            Log::info("Order Data", $data);
-            Log::info("Order status", [$data['fulfillment_status']]);
-            if($data['fulfillment_status'] == "fulfilled"){
+            $payload = json_decode($order->payload, true);
+            $paymentMode = $payload['DataAreaId'] ?? null;
+            $salesHeader = $payload['SalesOrderHeader'] ?? null;
+
+            Log::info("Order Data", $order);
+            if($salesHeader && ($salesHeader['PaymMode'] ?? null) === 'COD' && $data['fulfillment_status'] == "fulfilled" && $data['financial_status'] == "paid") {
                 $token = $this->getMicrosoftToken();
                 $apiData = [
                     '_request' => [
@@ -72,7 +75,7 @@ class OrderController extends Controller
                         'DataAreaId' => 'GC',
                         'ReturnOrderHeader' => [
                             'MessageId' => $data['id'],
-                            "SalesOrderNumber"=>"EC000102",
+                            "SalesOrderNumber"=>$order->salesID,
                             "CustomerAccountNumber" =>"EC000102",
                             "Reason"=>"defect product delivered",
                             "ReturnDate"=>"12/15/2020",
@@ -103,7 +106,8 @@ class OrderController extends Controller
                 'email' => $email,
                 'orderName' => $shopifyOrder["name"],
                 'status' => $orderArray['status'],
-                'payload' => json_encode($orderArray['order'])
+                'payload' => json_encode($orderArray['order']),
+                'salesID' => $orderArray['response']['Sales order'],
             ]);
         } else {
             Log::info("Order Array", [$orderArray]);

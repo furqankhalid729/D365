@@ -18,6 +18,7 @@ export default function Orders({ orders }) {
         { field: 'orderId', headerName: 'Order ID' },
         { field: 'email', headerName: 'Email' },
         { field: 'status', headerName: 'Status' },
+        { field: 'salesID', headerName: 'Sales Number' },
         {
             field: 'created_at',
             headerName: 'Created At',
