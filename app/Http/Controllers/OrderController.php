@@ -110,14 +110,14 @@ class OrderController extends Controller
                 $token = $this->getMicrosoftToken();
             
                 // Index line items by variant_id for faster lookup
-                $lineItemsByVariantId = collect($data['line_items'])->keyBy('variant_id');
+                $lineItemsByVariantId = collect($data['line_items'])->keyBy('id');
             
                 $returnOrderLines = [];
                 $lineNumber = 1;
             
                 foreach ($data['returns'] as $refund) {
                     foreach ($refund['return_line_items'] as $returnItem) {
-                        $variantId = $returnItem['line_item']['variant_id'];
+                        $variantId = $returnItem['line_item_id'];
                         $quantity = $returnItem['quantity'];
                         $subtotal = $returnItem['subtotal'];
             
