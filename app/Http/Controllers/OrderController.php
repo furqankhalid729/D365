@@ -51,7 +51,11 @@ class OrderController extends Controller
             $paymentMode = $payload['DataAreaId'] ?? null;
             $salesHeader = $payload['SalesOrderHeader'] ?? null;
 
-            Log::info("Order Data", $order);
+            $cancelledAt = $data['cancelled_at'];
+            $email = $data['email'] ?? null;
+            $customer = Customer::where("email", $email)->first();
+
+            Log::info("Order Data", [$order]);
             if($salesHeader && ($salesHeader['PaymMode'] ?? null) === 'COD' && $data['fulfillment_status'] == "fulfilled" && $data['financial_status'] == "paid") {
                 $token = $this->getMicrosoftToken();
                 $apiData = [
@@ -68,7 +72,8 @@ class OrderController extends Controller
                 $response = Http::withToken($token)->post(env("D365_UPDATE_ORDER"), $apiData);
                 return $response;
             }
-            if ($data['fulfillment_status'] == "cancelled") {
+
+            if ($cancelledAt) {
                 $token = $this->getMicrosoftToken();
                 $apiData = [
                     '_request' => [
@@ -76,9 +81,9 @@ class OrderController extends Controller
                         'ReturnOrderHeader' => [
                             'MessageId' => $data['id'],
                             "SalesOrderNumber"=>$order->salesID,
-                            "CustomerAccountNumber" =>"EC000102",
-                            "Reason"=>"defect product delivered",
-                            "ReturnDate"=>"12/15/2020",
+                            "CustomerAccountNumber" =>$customer->crmId,
+                            "Reason"=>$data['cancel_reason'],
+                            "ReturnDate"=> $data['cancelled_at'],
                             "ReturnShippingCost"=>"Yes"
                         ]
                     ]
@@ -273,6 +278,9 @@ class OrderController extends Controller
                 $success = isset($responseData['Success']) && $responseData['Success'] === true;
                 $status = $success ? 'success' : 'error';
                 if ($success) {
+                    order::where("id", $id)->update([
+                        'status' => $status
+                    ]);
                     Log::info('D365 Order Created Successfully:', $apiData);
                     return response()->json([
                         'message' => 'Order sent to D365',
