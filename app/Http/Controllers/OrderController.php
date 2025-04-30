@@ -26,9 +26,9 @@ class OrderController extends Controller
                 "message" => "error generating token"
             ]);
 
-        $customer = Customer::where("email", $email)->first();
-        if (!$customer)
-            $customerID = $this->createCustomer($shippingAddress, $email, $token);
+        // $customer = Customer::where("email", $email)->first();
+        // if (!$customer)
+        //     $customerID = $this->createCustomer($shippingAddress, $email, $token);
 
         $checkOrder = Order::where("orderId", $data["id"])->first();
         if ($checkOrder) {
@@ -53,10 +53,10 @@ class OrderController extends Controller
 
             $cancelledAt = $data['cancelled_at'];
             $email = $data['email'] ?? null;
-            $customer = Customer::where("email", $email)->first();
+            //$customer = Customer::where("email", $email)->first();
 
             Log::info("Order Data", [$order]);
-            if($salesHeader && ($salesHeader['PaymMode'] ?? null) === 'COD' && $data['fulfillment_status'] == "fulfilled" && $data['financial_status'] == "paid") {
+            if ($salesHeader && ($salesHeader['PaymMode'] ?? null) === 'COD' && $data['fulfillment_status'] == "fulfilled" && $data['financial_status'] == "paid") {
                 $token = $this->getMicrosoftToken();
                 $apiData = [
                     '_request' => [
@@ -75,24 +75,38 @@ class OrderController extends Controller
 
             if ($cancelledAt) {
                 $token = $this->getMicrosoftToken();
+
+                $returnOrderLines = [];
+                $lineNumber = 1;
+
+                foreach ($data['refunds'] as $refund) {
+                    foreach ($refund['refund_line_items'] as $lineItem) {
+                        $returnOrderLines[] = [
+                            "LineNumberExternal" => (string) $lineNumber++,
+                            "ItemNumber" => $lineItem['line_item']['sku'] ?? $lineItem['line_item']['variant_id'],
+                            "SalesQuantity" => $lineItem['quantity'],
+                            "LineAmount" => $lineItem['subtotal'] / 100, 
+                        ];
+                    }
+                }
                 $apiData = [
                     '_request' => [
                         'DataAreaId' => 'GC',
                         'ReturnOrderHeader' => [
                             'MessageId' => $data['id'],
-                            "SalesOrderNumber"=>$order->salesID,
-                            "CustomerAccountNumber" =>$customer->crmId,
-                            "Reason"=>$data['cancel_reason'],
-                            "ReturnDate"=> $data['cancelled_at'],
-                            "ReturnShippingCost"=>"Yes"
+                            "SalesOrderNumber" => $order->salesID,
+                            "CustomerAccountNumber" => $data["customer"]["id"],
+                            "Reason" => $data['cancel_reason'],
+                            "ReturnDate" => $data['cancelled_at'],
+                            "ReturnShippingCost" => "Yes",
+                            "ReturnOrderLines" => $returnOrderLines,
                         ]
                     ]
                 ];
                 $response = Http::withToken($token)->post(env("D365_CANCEL_ORDER"), $apiData);
                 return $response;
             }
-        }
-        else{
+        } else {
             return response()->json([
                 "message" => "Order not found"
             ]);
@@ -183,7 +197,7 @@ class OrderController extends Controller
                 "LineAmount" => $item["quantity"] * $item["price"]
             ];
         }, $shopifyOrder["line_items"], array_keys($shopifyOrder["line_items"]));
-        $customer = Customer::where("email", $email)->first();
+        //$customer = Customer::where("email", $email)->first();
         $gatewayNames = $shopifyOrder['payment_gateway_names'] ?? [];
         $firstGateway = $gatewayNames[0] ?? '';
         log::info("Payment Gateway", [$firstGateway, $gatewayNames]);
@@ -203,7 +217,7 @@ class OrderController extends Controller
                 "SalesOrderHeader" => [
                     "MessageId" => (string) $shopifyOrder['id'],
                     "SalesOrderNumber" => $shopifyOrder["name"],
-                    "CustomerAccountNumber" => $customer->crmId,
+                    "CustomerAccountNumber" => $shopifyOrder["customer"]["id"],
                     "DlvTerm" => "30 days",
                     "RequestedReceiptDate" => date("m/d/Y"),
                     "DlvMode" => "ship",
