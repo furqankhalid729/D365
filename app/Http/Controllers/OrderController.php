@@ -73,7 +73,7 @@ class OrderController extends Controller
                 return $response;
             }
 
-            if ($cancelledAt) {
+            if ($cancelledAt || !empty($data['refunds'])) {
                 $token = $this->getMicrosoftToken();
 
                 $returnOrderLines = [];
@@ -98,14 +98,63 @@ class OrderController extends Controller
                             "CustomerAccountNumber" => $data["customer"]["id"],
                             "Reason" => $data['cancel_reason'],
                             "ReturnDate" => $data['cancelled_at'],
-                            "ReturnShippingCost" => "Yes",
-                            "ReturnOrderLines" => $returnOrderLines,
-                        ]
+                            "ReturnShippingCost" => "Yes"
+                        ],
+                        "ReturnOrderLines" => $returnOrderLines
                     ]
                 ];
                 $response = Http::withToken($token)->post(env("D365_CANCEL_ORDER"), $apiData);
                 return $response;
             }
+            if (!empty($data['returns'])) {
+                $token = $this->getMicrosoftToken();
+            
+                // Index line items by variant_id for faster lookup
+                $lineItemsByVariantId = collect($data['line_items'])->keyBy('variant_id');
+            
+                $returnOrderLines = [];
+                $lineNumber = 1;
+            
+                foreach ($data['returns'] as $refund) {
+                    foreach ($refund['return_line_items'] as $returnItem) {
+                        $variantId = $returnItem['line_item']['variant_id'];
+                        $quantity = $returnItem['quantity'];
+                        $subtotal = $returnItem['subtotal'];
+            
+                        // Lookup full line item using variant_id
+                        $lineItem = $lineItemsByVariantId->get($variantId);
+            
+                        $sku = $lineItem['sku'] ?? $variantId;
+            
+                        $returnOrderLines[] = [
+                            "LineNumberExternal" => (string) $lineNumber++,
+                            "ItemNumber" => $sku,
+                            "SalesQuantity" => $quantity,
+                            "LineAmount" => $subtotal,
+                        ];
+                    }
+                }
+            
+                $apiData = [
+                    '_request' => [
+                        'DataAreaId' => 'GC',
+                        'ReturnOrderHeader' => [
+                            'MessageId' => $data['id'],
+                            "SalesOrderNumber" => $order->salesID,
+                            "CustomerAccountNumber" => $data["customer"]["id"],
+                            "Reason" => $data['cancel_reason'],
+                            "ReturnDate" => $data['cancelled_at'],
+                            "ReturnShippingCost" => "Yes",
+                            
+                        ],
+                        "ReturnOrderLines" => $returnOrderLines,
+                    ]
+                ];
+            
+                $response = Http::withToken($token)->post(env("D365_CANCEL_ORDER"), $apiData);
+                return $response;
+            }
+            
         } else {
             return response()->json([
                 "message" => "Order not found"
