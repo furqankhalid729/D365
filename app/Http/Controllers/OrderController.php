@@ -85,7 +85,7 @@ class OrderController extends Controller
                             "LineNumberExternal" => (string) $lineNumber++,
                             "ItemNumber" => $lineItem['line_item']['sku'] ?? $lineItem['line_item']['variant_id'],
                             "SalesQuantity" => $lineItem['quantity'],
-                            "LineAmount" => $lineItem['subtotal'] / 100, 
+                            "LineAmount" => $lineItem['subtotal'], 
                         ];
                     }
                 }
