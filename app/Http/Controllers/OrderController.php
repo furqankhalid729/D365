@@ -119,7 +119,7 @@ class OrderController extends Controller
                     foreach ($refund['return_line_items'] as $returnItem) {
                         $variantId = $returnItem['line_item_id'];
                         $quantity = $returnItem['quantity'];
-                        $subtotal = $returnItem['subtotal'];
+                        $subtotal = 0;
             
                         // Lookup full line item using variant_id
                         $lineItem = $lineItemsByVariantId->get($variantId);
