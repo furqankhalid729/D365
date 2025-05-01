@@ -49,13 +49,13 @@ class OrderController extends Controller
         if ($order) {
             $payload = json_decode($order->payload, true);
             $paymentMode = $payload['DataAreaId'] ?? null;
-            $salesHeader = $payload['SalesOrderHeader'] ?? null;
+            $salesHeader = $payload['_request']['SalesOrderHeader'] ?? null;
 
             $cancelledAt = $data['cancelled_at'];
             $email = $data['email'] ?? null;
             //$customer = Customer::where("email", $email)->first();
 
-            Log::info("Order Data", [$order]);
+            Log::info("Order Data", [$salesHeader, $data['fulfillment_status'], $data['financial_status']]);
             if (($salesHeader['PaymMode'] ?? null) === 'COD' && $data['fulfillment_status'] == "fulfilled" && $data['financial_status'] == "paid") {
                 $token = $this->getMicrosoftToken();
                 $apiData = [
