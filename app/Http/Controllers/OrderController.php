@@ -108,10 +108,8 @@ class OrderController extends Controller
             }
             if (!empty($data['returns'])) {
                 $token = $this->getMicrosoftToken();
-            
                 // Index line items by variant_id for faster lookup
                 $lineItemsByVariantId = collect($data['line_items'])->keyBy('id');
-            
                 $returnOrderLines = [];
                 $lineNumber = 1;
             
@@ -142,8 +140,8 @@ class OrderController extends Controller
                             'MessageId' => $data['id'],
                             "SalesOrderNumber" => $order->salesID,
                             "CustomerAccountNumber" => $data["customer"]["id"],
-                            "Reason" => $data['cancel_reason'],
-                            "ReturnDate" => $data['cancelled_at'],
+                            "Reason" => $data['cancel_reason'] ?? '',
+                            "ReturnDate" => date('Y-m-d'),//$data['cancelled_at'],
                             "ReturnShippingCost" => "Yes",
                             
                         ],
