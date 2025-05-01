@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Carbon\Carbon;
 
 class OrderController extends Controller
 {
@@ -140,8 +141,8 @@ class OrderController extends Controller
                             'MessageId' => $data['id'],
                             "SalesOrderNumber" => $order->salesID,
                             "CustomerAccountNumber" => $data["customer"]["id"],
-                            "Reason" => $data['cancel_reason'] ?? '',
-                            "ReturnDate" => date('Y-m-d'),//$data['cancelled_at'],
+                            "Reason" => !empty($data['cancel_reason']) ? $data['cancel_reason'] : '',
+                            "ReturnDate" => Carbon::today()->toDateString(),//$data['cancelled_at'],
                             //"ReturnShippingCost" => "Yes",
                         ],
                         "ReturnOrderLines" => $returnOrderLines, 
