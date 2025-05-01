@@ -142,8 +142,7 @@ class OrderController extends Controller
                             "CustomerAccountNumber" => $data["customer"]["id"],
                             "Reason" => $data['cancel_reason'] ?? '',
                             "ReturnDate" => date('Y-m-d'),//$data['cancelled_at'],
-                            "ReturnShippingCost" => "Yes",
-                            
+                            //"ReturnShippingCost" => "Yes",
                         ],
                         "ReturnOrderLines" => $returnOrderLines,
                     ]
