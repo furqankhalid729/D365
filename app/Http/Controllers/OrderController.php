@@ -56,7 +56,7 @@ class OrderController extends Controller
             //$customer = Customer::where("email", $email)->first();
 
             Log::info("Order Data", [$order]);
-            if ($salesHeader && ($salesHeader['PaymMode'] ?? null) === 'COD' && $data['fulfillment_status'] == "fulfilled" && $data['financial_status'] == "paid") {
+            if (($salesHeader['PaymMode'] ?? null) === 'COD' && $data['fulfillment_status'] == "fulfilled" && $data['financial_status'] == "paid") {
                 $token = $this->getMicrosoftToken();
                 $apiData = [
                     '_request' => [
