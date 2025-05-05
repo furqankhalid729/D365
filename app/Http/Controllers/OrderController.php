@@ -174,6 +174,7 @@ class OrderController extends Controller
                 'status' => $orderArray['status'],
                 'payload' => json_encode($orderArray['order']),
                 'salesID' => $orderArray['response']['Sales order'],
+                'note' => $orderArray['response']['InfoMessage'],
             ]);
         } else {
             Log::info("Order Array", [$orderArray]);

@@ -13,6 +13,7 @@ class Order extends Model
         'orderName',
         'payload',
         'status',
-        'salesID'
+        'salesID',
+        'note'
     ];
 }
