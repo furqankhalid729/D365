@@ -16,5 +16,6 @@ Route::post('/api/inventory/abs', [InventoryController::class, 'setAbsoluteValue
 
 Route::post('/api/order/create', [OrderController::class, 'store']);//->middleware('verify.shopify.webhook');
 Route::post('/api/order/update', [OrderController::class, 'update']);
+Route::post('/api/order/edit', [OrderController::class, 'edit']);
 
 Route::post('/api/send-order/{id}', [OrderController::class, 'resendOrder'])->middleware(['auth:sanctum', 'verified'])->name('order.resend');

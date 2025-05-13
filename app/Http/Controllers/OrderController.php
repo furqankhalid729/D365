@@ -21,7 +21,6 @@ class OrderController extends Controller
         $shippingAddress = $data['shipping_address'] ?? null;
 
         $token = $this->getMicrosoftToken();
-        info("Token is", [$token]);
         if ($token == "")
             return response()->json([
                 "message" => "error generating token"
@@ -86,7 +85,7 @@ class OrderController extends Controller
                             "LineNumberExternal" => (string) $lineNumber++,
                             "ItemNumber" => $lineItem['line_item']['sku'] ?? $lineItem['line_item']['variant_id'],
                             "SalesQuantity" => $lineItem['quantity'],
-                            "LineAmount" => $lineItem['subtotal'], 
+                            "LineAmount" => $lineItem['subtotal'],
                         ];
                     }
                 }
@@ -98,7 +97,7 @@ class OrderController extends Controller
                             "SalesOrderNumber" => $order->salesID,
                             "CustomerAccountNumber" => $data["customer"]["id"],
                             "Reason" => !empty($data['cancel_reason']) ? $data['cancel_reason'] : '',
-                            "ReturnDate" => Carbon::today()->toDateString(),//$data['cancelled_at'],
+                            "ReturnDate" => Carbon::today()->toDateString(), //$data['cancelled_at'],
                             "ReturnShippingCost" => "Yes"
                         ],
                         "ReturnOrderLines" => $returnOrderLines
@@ -113,18 +112,18 @@ class OrderController extends Controller
                 $lineItemsByVariantId = collect($data['line_items'])->keyBy('id');
                 $returnOrderLines = [];
                 $lineNumber = 1;
-            
+
                 foreach ($data['returns'] as $refund) {
                     foreach ($refund['return_line_items'] as $returnItem) {
                         $variantId = $returnItem['line_item_id'];
                         $quantity = $returnItem['quantity'];
                         $subtotal = 0;
-            
+
                         // Lookup full line item using variant_id
                         $lineItem = $lineItemsByVariantId->get($variantId);
-            
+
                         $sku = $lineItem['sku'] ?? $variantId;
-            
+
                         $returnOrderLines[] = [
                             "LineNumberExternal" => (string) $lineNumber++,
                             "ItemNumber" => $sku,
@@ -133,7 +132,7 @@ class OrderController extends Controller
                         ];
                     }
                 }
-            
+
                 $apiData = [
                     '_request' => [
                         'DataAreaId' => 'GC',
@@ -142,22 +141,121 @@ class OrderController extends Controller
                             "SalesOrderNumber" => $order->salesID,
                             "CustomerAccountNumber" => $data["customer"]["id"],
                             "Reason" => !empty($data['cancel_reason']) ? $data['cancel_reason'] : '',
-                            "ReturnDate" => Carbon::today()->toDateString(),//$data['cancelled_at'],
+                            "ReturnDate" => Carbon::today()->toDateString(), //$data['cancelled_at'],
                             //"ReturnShippingCost" => "Yes",
                         ],
-                        "ReturnOrderLines" => $returnOrderLines, 
+                        "ReturnOrderLines" => $returnOrderLines,
                     ]
                 ];
-            
+
                 $response = Http::withToken($token)->post(env("D365_CANCEL_ORDER"), $apiData);
                 return $response;
             }
-            
+
+             $isOrderEdited = $this->isOrderEdited($data['line_items'], $payload['_request']['SalesOrderLines'] ?? []);
+            if($isOrderEdited){
+                $token = $this->getMicrosoftToken();
+                $salesOrderLines = array_map(function ($item, $index) {
+                    return [
+                        "LineNumberExternal" => (string) ($index + 1),
+                        "ItemNumber" => $item["sku"],
+                        "SalesQuantity" => $item["current_quantity"],
+                        "Discount" => $item["total_discount_set"]['presentment_money']['amount'],
+                        "UnitPrice" => $item["price"],
+                        "LineAmount" => $item["current_quantity"] * $item["price"]
+                    ];
+                }, $data["line_items"], array_keys($data["line_items"]));
+                $apiData = [
+                    "_request" => [
+                        "DataAreaId" => "GC",
+                        "SalesOrderHeader" => [
+                            "MessageId" => (string) $data['id'],
+                        ],
+                        "SalesOrderLines" => $salesOrderLines
+                    ]
+                ];
+                Log::info("API Data", [$apiData]);
+                $response = Http::withToken($token)->post(env("D365_EDIT_ORDER"), $apiData);
+                return response()->json([
+                    'message' => 'Order updated in D365',
+                    'order' => $apiData,
+                    'response' => json_decode($response->body(), true),
+                    'status' => 'success'
+                ], 201);
+            }
         } else {
             return response()->json([
                 "message" => "Order not found"
             ]);
         }
+    }
+
+    private function isOrderEdited(array $shopifyLineItems, array $d365SalesOrderLines): bool
+    {
+        // Index D365 lines by SKU or variant_id for easier comparison
+        $d365Items = collect($d365SalesOrderLines)->mapWithKeys(function ($item) {
+            $key = $item['ItemNumber'];
+            return [$key => $item];
+        });
+
+        // Track if we detect any changes
+        $edited = false;
+
+        foreach ($shopifyLineItems as $item) {
+            $sku = $item['sku'] ?? $item['variant_id'];
+            $quantity = $item['quantity'];
+
+            if (!isset($d365Items[$sku])) {
+                // Item was added
+                $edited = true;
+                break;
+            }
+
+            // Check if quantity changed
+            if ((int) $d365Items[$sku]['SalesQuantity'] !== (int) $quantity) {
+                $edited = true;
+                break;
+            }
+
+            // Optionally, check price or other fields too
+            // if ((float) $d365Items[$sku]['UnitPrice'] !== (float) $item['price']) {
+            //     $edited = true;
+            //     break;
+            // }
+        }
+
+        // Check if any items were removed from Shopify
+        $shopifySKUs = collect($shopifyLineItems)->map(fn($i) => $i['sku'] ?? $i['variant_id'])->toArray();
+        foreach ($d365Items as $sku => $lineItem) {
+            if (!in_array($sku, $shopifySKUs)) {
+                $edited = true;
+                break;
+            }
+        }
+
+        return $edited;
+    }
+
+
+    public function edit(Request $request)
+    {
+        $token = $this->getMicrosoftToken();
+        if ($token == "")
+            return response()->json([
+                "message" => "error generating token"
+            ]);
+        $data = $request->all();
+        $order = Order::where("orderId", $data['order_edit']["order_id"])->first();
+        if (!$order) {
+            return response()->json([
+                "message" => "Order Not Found"
+            ]);
+        }
+        $apiData = json_decode($order->payload, true);
+        return response()->json([
+            "message" => "Order Found",
+            "order" => $apiData
+        ]);
     }
 
     private function saveOrder($shopifyOrder, $order, $email)
