@@ -98,7 +98,7 @@ class OrderController extends Controller
                             'order' => $apiData,
                             'response' => json_decode($response->body(), true),
                             'status' => 'error'
-                        ], 400);
+                        ], 201);
                     }
                 }
             }
