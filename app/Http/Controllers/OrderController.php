@@ -57,6 +57,7 @@ class OrderController extends Controller
 
             $isOrderEdited = $this->isOrderEdited($data['line_items'], $payload['_request']['SalesOrderLines'] ?? []);
             if ($isOrderEdited && $order->updated_at->diffInMinutes(now()) > 3) {
+                $order->touch();
                 $token = $this->getMicrosoftToken();
                 $salesOrderLines = array_map(function ($item, $index) {
                     return [
