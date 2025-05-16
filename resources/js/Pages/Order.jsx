@@ -29,6 +29,14 @@ export default function Orders({ orders }) {
             }
         },
         {
+            field: 'updated_at',
+            headerName: 'Updated At',
+            valueFormatter: params => {
+                const date = new Date(params.value);
+                return date.toLocaleString(); // e.g., "4/17/2025"
+            }
+        },
+        {
             headerName: 'Action',
             field: 'action',
             cellRenderer: params => <SendOrderButton data={params.data} />,
