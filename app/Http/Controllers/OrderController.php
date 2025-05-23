@@ -55,54 +55,59 @@ class OrderController extends Controller
             $email = $data['email'] ?? null;
             //$customer = Customer::where("email", $email)->first();
 
-            // $isOrderEdited = $this->isOrderEdited($data['line_items'], $payload['_request']['SalesOrderLines'] ?? []);
-            // if ($isOrderEdited && $order->updated_at->diffInMinutes(now()) > 3) {
-            //     $order->touch();
-            //     $token = $this->getMicrosoftToken();
-            //     $salesOrderLines = array_map(function ($item, $index) {
-            //         return [
-            //             "LineNumberExternal" => (string) ($index + 1),
-            //             "ItemNumber" => $item["sku"],
-            //             "SalesQuantity" => $item["current_quantity"],
-            //             "Discount" => $item["total_discount_set"]['presentment_money']['amount'],
-            //             "UnitPrice" => $item["price"],
-            //             "LineAmount" => $item["current_quantity"] * $item["price"]
-            //         ];
-            //     }, $data["line_items"], array_keys($data["line_items"]));
-            //     $apiData = [
-            //         "_request" => [
-            //             "DataAreaId" => "GC",
-            //             "SalesOrderHeader" => [
-            //                 "MessageId" => (string) $data['id'],
-            //             ],
-            //             "SalesOrderLines" => $salesOrderLines
-            //         ]
-            //     ];
-            //     Log::info("API Data", [$apiData]);
-            //     $response = Http::withToken($token)->post(env("D365_EDIT_ORDER"), $apiData);
-            //     if ($response->successful()) {
-            //         $data = $response->json();
-            //         if (isset($data['Success']) && $data['Success'] === true) {
-            //             $salesOrder = $data['Sales order'];
-            //             $order->update([
-            //                 'salesID' => $salesOrder
-            //             ]);
-            //             return response()->json([
-            //                 'message' => 'Order updated in D365',
-            //                 'order' => $apiData,
-            //                 'response' => json_decode($response->body(), true),
-            //                 'status' => 'success'
-            //             ], 201);
-            //         } else {
-            //             return response()->json([
-            //                 'message' => 'Order updated in D365',
-            //                 'order' => $apiData,
-            //                 'response' => json_decode($response->body(), true),
-            //                 'status' => 'error'
-            //             ], 201);
-            //         }
-            //     }
-            // }
+            $isOrderEdited = $this->isOrderEdited($data['line_items'], $payload['_request']['SalesOrderLines'] ?? []);
+            if ($isOrderEdited && $order->updated_at->diffInMinutes(now()) > 3) {
+                $order->touch();
+                $token = $this->getMicrosoftToken();
+                $salesOrderLines = array_map(function ($item, $index) {
+                    return [
+                        "LineNumberExternal" => (string) ($index + 1),
+                        "ItemNumber" => $item["sku"],
+                        "SalesQuantity" => $item["current_quantity"],
+                        "Discount" => $item["total_discount_set"]['presentment_money']['amount'],
+                        "UnitPrice" => $item["price"],
+                        "LineAmount" => $item["current_quantity"] * $item["price"]
+                    ];
+                }, $data["line_items"], array_keys($data["line_items"]));
+                $shippingCost = 0.00;
+                if (isset($data['current_shipping_price_set']['shop_money']['amount'])) {
+                    $shippingCost = (float) $data['current_shipping_price_set']['shop_money']['amount'];
+                }
+                $apiData = [
+                    "_request" => [
+                        "DataAreaId" => "GC",
+                        "SalesOrderHeader" => [
+                            "MessageId" => (string) $data['id'],
+                            "shippingCost" => $shippingCost
+                        ],
+                        "SalesOrderLines" => $salesOrderLines
+                    ]
+                ];
+                Log::info("API Data", [$apiData]);
+                $response = Http::withToken($token)->post(env("D365_EDIT_ORDER"), $apiData);
+                if ($response->successful()) {
+                    $data = $response->json();
+                    if (isset($data['Success']) && $data['Success'] === true) {
+                        $salesOrder = $data['Sales order'];
+                        $order->update([
+                            'salesID' => $salesOrder
+                        ]);
+                        return response()->json([
+                            'message' => 'Order updated in D365',
+                            'order' => $apiData,
+                            'response' => json_decode($response->body(), true),
+                            'status' => 'success'
+                        ], 201);
+                    } else {
+                        return response()->json([
+                            'message' => 'Order updated in D365',
+                            'order' => $apiData,
+                            'response' => json_decode($response->body(), true),
+                            'status' => 'error'
+                        ], 201);
+                    }
+                }
+            }
 
             Log::info("Order Data", [$salesHeader, $data['fulfillment_status'], $data['financial_status']]);
             if (($salesHeader['PaymMode'] ?? null) === 'COD' && $data['fulfillment_status'] == "fulfilled" && $data['financial_status'] == "paid") {
