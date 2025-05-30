@@ -14,6 +14,7 @@ class Order extends Model
         'payload',
         'status',
         'salesID',
-        'note'
+        'note',
+        'error'
     ];
 }

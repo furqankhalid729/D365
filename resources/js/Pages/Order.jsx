@@ -20,6 +20,7 @@ export default function Orders({ orders }) {
         { field: 'status', headerName: 'Status' },
         { field: 'salesID', headerName: 'Sales Number' },
         { field: 'note', headerName: 'note' },
+        { field: 'error', headerName: 'Error Message' },
         {
             field: 'created_at',
             headerName: 'Created At',

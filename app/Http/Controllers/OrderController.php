@@ -295,6 +295,7 @@ class OrderController extends Controller
                 'payload' => json_encode($orderArray['order']),
                 'salesID' => $orderArray['response']['Sales order'],
                 'note' => $orderArray['response']['InfoMessage'],
+                'error' => $orderArray['response']['ErrorMessage'] ?? null
             ]);
         } else {
             Log::info("Order Array", [$orderArray]);
@@ -304,7 +305,9 @@ class OrderController extends Controller
                 'email' => $email,
                 'orderName' => $shopifyOrder["name"],
                 'status' => $orderArray['status'],
-                'payload' => json_encode($orderArray['order'])
+                'payload' => json_encode($orderArray['order']),
+                'note' => $orderArray['response']['InfoMessage'],
+                'error' => $orderArray['response']['ErrorMessage'] ?? null
             ]);
         }
     }
@@ -430,7 +433,8 @@ class OrderController extends Controller
                     'message' => 'Failed to create order in D365',
                     'error' => $responseData,
                     'order' => $apiData,
-                    'status' => $status
+                    'status' => $status,
+                    'response' => $responseData
                 ], $response->status());
             }
         } else {
